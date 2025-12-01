@@ -1,6 +1,6 @@
 # Analytics for Digital Marketing 
 
-Tools: PostgreSQL (DBeaver) for writing SQL queries.
+<u>Tools</u>: PostgreSQL (DBeaver) for writing SQL queries.
 
 Goal: Explore details of Google and Facebook online campaigns. 
 
