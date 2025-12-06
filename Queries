@@ -1,0 +1,196 @@
+#--1
+with union_ads_basic_daily as
+(select
+fabd.ad_date,
+'Facebook' as ad_source,
+fc.campaign_name,
+fa.adset_name,
+fabd.spend,
+fabd.impressions,
+fabd.reach,
+fabd.clicks,
+fabd.value
+from facebook_ads_basic_daily as fabd
+left join facebook_adset fa on fabd.adset_id=fa.adset_id
+left join facebook_campaign fc on fabd.campaign_id=fc.campaign_id
+union all
+select
+ad_date,
+'Google' as ad_source,
+campaign_name,
+adset_name,
+spend,
+impressions,
+reach,
+clicks,
+value
+from google_ads_basic_daily as gabd)
+select
+ad_date,
+ad_source,
+round(avg(spend), 2) as avg_spend,
+max(spend) as max_spend,
+min(spend) as min_spend
+from union_ads_basic_daily
+group by 1,2
+order by 1;
+
+#--2
+with union_ads_basic_daily as
+(select
+fabd.ad_date,
+'Facebook' as ad_source,
+fc.campaign_name,
+fa.adset_name,
+fabd.spend,
+fabd.impressions,
+fabd.reach,
+fabd.clicks,
+fabd.value
+from facebook_ads_basic_daily as fabd
+left join facebook_adset fa on fabd.adset_id=fa.adset_id
+left join facebook_campaign fc on fabd.campaign_id=fc.campaign_id
+union all
+select
+ad_date,
+'Google' as ad_source,
+campaign_name,
+adset_name,
+spend,
+impressions,
+reach,
+clicks,
+value
+from google_ads_basic_daily as gabd)
+select
+ad_date,
+case when sum(spend)>0 then round(sum(value)::numeric/sum(spend), 4) else 0 end as total_romi
+from union_ads_basic_daily
+group by 1
+order by 2 desc
+limit 5;
+
+#--3
+with union_ads_basic_daily as
+(select
+fabd.ad_date,
+'Facebook' as ad_source,
+fc.campaign_name,
+fa.adset_name,
+fabd.spend,
+fabd.impressions,
+fabd.reach,
+fabd.clicks,
+fabd.value
+from facebook_ads_basic_daily as fabd
+left join facebook_adset fa on fabd.adset_id=fa.adset_id
+left join facebook_campaign fc on fabd.campaign_id=fc.campaign_id
+union all
+select
+ad_date,
+'Google' as ad_source,
+campaign_name,
+adset_name,
+spend,
+impressions,
+reach,
+clicks,
+value
+from google_ads_basic_daily as gabd)
+select
+date_trunc ('week', ad_date)::date as ad_week_start,
+campaign_name,
+sum(value) as week_value
+from union_ads_basic_daily
+where ad_date is not null
+group by 1, 2
+order by 3 desc
+limit 1;
+
+#--4
+with union_ads_basic_daily as
+(select
+fabd.ad_date,
+'Facebook' as ad_source,
+fc.campaign_name,
+fa.adset_name,
+fabd.spend,
+fabd.impressions,
+fabd.reach,
+fabd.clicks,
+fabd.value
+from facebook_ads_basic_daily as fabd
+left join facebook_adset fa on fabd.adset_id=fa.adset_id
+left join facebook_campaign fc on fabd.campaign_id=fc.campaign_id
+union all
+select
+ad_date,
+'Google' as ad_source,
+campaign_name,
+adset_name,
+spend,
+impressions,
+reach,
+clicks,
+value
+from google_ads_basic_daily as gabd)
+select
+date_trunc ('month', ad_date)::date as ad_month_start,
+campaign_name,
+--sum(reach) as reach_month,
+--lag(sum(reach)) over (partition by campaign_name order by date_trunc ('month', ad_date)::date) as reach_prev,
+case when abs(sum(reach)-
+lag(sum(reach)) over (partition by campaign_name order by date_trunc ('month', ad_date)::date))>0
+then abs(sum(reach)-
+lag(sum(reach)) over (partition by campaign_name order by date_trunc ('month', ad_date)::date))
+else 0 end as reach_growth
+from union_ads_basic_daily
+group by 1, 2
+order by 3 desc
+limit 1;
+
+#--5
+with union_ads_basic_daily as
+(select
+fabd.ad_date,
+'Facebook' as ad_source,
+fc.campaign_name,
+fa.adset_name,
+fabd.spend,
+fabd.impressions,
+fabd.reach,
+fabd.clicks,
+fabd.value
+from facebook_ads_basic_daily as fabd
+left join facebook_adset fa on fabd.adset_id=fa.adset_id
+left join facebook_campaign fc on fabd.campaign_id=fc.campaign_id
+union all
+select
+ad_date,
+'Google' as ad_source,
+campaign_name, adset_name, spend, impressions, reach, clicks, value
+from google_ads_basic_daily as gabd),
+adset_days as
+(select
+adset_name,
+ad_date,
+(row_number() over (partition by adset_name order by ad_date)-1) as streack_group
+from union_ads_basic_daily
+group by 1, 2
+order by 1, 2),
+length as
+(select
+adset_name,
+ad_date,
+streack_group,
+(ad_date::date - streack_group::int) as ad_start_date
+from adset_days)
+select
+adset_name,
+ad_start_date,
+count(ad_start_date) as streack_length
+from length
+group by 1,2
+order by 3 desc
+limit 1;
+
